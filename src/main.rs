@@ -1,4 +1,33 @@
 type ICMPChecksum = u16;
+type ICMPPayload = Vec<u8>;
+
+#[repr(u8)]
+enum ICMPType {
+    Echo = 0x08,
+    EchoReply = 0x00,
+}
+
+struct ICMPPacket {
+    type_: ICMPType,
+    code: u8,
+    checksum: ICMPChecksum,
+    identifier: u16,
+    sequence_number: u16,
+    payload: ICMPPayload,
+}
+
+impl ICMPPacket {
+    fn new(type_: ICMPType, identifier: u16, sequence_number: u16, payload: ICMPPayload) -> Self {
+        Self {
+            type_,
+            code: 0, // for icmp echo and echo reply requests the code is always 0
+            checksum: 0x00,
+            identifier,
+            sequence_number,
+            payload,
+        }
+    }
+}
 
 fn calculate_icmp_checksum(icmp_packet: &[u8]) -> ICMPChecksum {
     let mut sum: u32 = 0;
