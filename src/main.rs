@@ -1,12 +1,14 @@
 type ICMPChecksum = u16;
 type ICMPPayload = Vec<u8>;
 
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 enum ICMPType {
     Echo = 0x08,
     EchoReply = 0x00,
 }
 
+#[derive(Debug)]
 struct ICMPPacket {
     type_: ICMPType,
     code: u8,
@@ -18,14 +20,33 @@ struct ICMPPacket {
 
 impl ICMPPacket {
     fn new(type_: ICMPType, identifier: u16, sequence_number: u16, payload: ICMPPayload) -> Self {
-        Self {
+        let mut icmp_packet = Self {
             type_,
             code: 0, // for icmp echo and echo reply requests the code is always 0
             checksum: 0x00,
             identifier,
             sequence_number,
             payload,
-        }
+        };
+
+        icmp_packet.checksum = calculate_icmp_checksum(&icmp_packet.as_bytes());
+
+        icmp_packet
+    }
+
+    fn as_bytes(&self) -> Vec<u8> {
+        let header = &[
+            [self.type_ as u8, self.code],
+            self.checksum.to_be_bytes(),
+            self.identifier.to_be_bytes(),
+            self.sequence_number.to_be_bytes(),
+        ]
+        .concat();
+        let payload = self.payload.as_slice();
+        let mut bytes = Vec::<u8>::with_capacity(header.len() + payload.len());
+        bytes.extend_from_slice(header);
+        bytes.extend_from_slice(payload);
+        bytes
     }
 }
 
@@ -49,8 +70,8 @@ fn calculate_icmp_checksum(icmp_packet: &[u8]) -> ICMPChecksum {
 }
 
 fn main() -> color_eyre::Result<()> {
-    let sample_icmp_packet = [0x08, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x20];
-    dbg!(calculate_icmp_checksum(&sample_icmp_packet));
+    let icmp_packet = ICMPPacket::new(ICMPType::Echo, 0x00, 0x01, vec![1, 3, 4, 5]);
+    dbg!(icmp_packet);
 
     Ok(())
 }
