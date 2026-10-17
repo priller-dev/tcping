@@ -1,3 +1,5 @@
+use color_eyre::eyre::{bail, ensure};
+
 type ICMPChecksum = u16;
 type ICMPPayload = Vec<u8>;
 
@@ -6,6 +8,18 @@ type ICMPPayload = Vec<u8>;
 enum ICMPType {
     Echo = 0x08,
     EchoReply = 0x00,
+}
+
+impl TryFrom<u8> for ICMPType {
+    type Error = color_eyre::eyre::Error;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0x08 => Self::Echo,
+            0x00 => Self::EchoReply,
+            _ => bail!("Not supported ICMP type: {value}"),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -47,6 +61,26 @@ impl ICMPPacket {
         bytes.extend_from_slice(header);
         bytes.extend_from_slice(payload);
         bytes
+    }
+}
+
+impl TryFrom<&[u8]> for ICMPPacket {
+    type Error = color_eyre::eyre::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        ensure!(
+            bytes.len() >= 8,
+            "ICMP packet size should be at least 8 bytes, but got {} bytes",
+            bytes.len()
+        );
+        Ok(Self {
+            type_: ICMPType::try_from(bytes[0])?,
+            code: bytes[1],
+            checksum: u16::from_be_bytes(bytes[2..4].try_into()?),
+            identifier: u16::from_be_bytes(bytes[4..6].try_into()?),
+            sequence_number: u16::from_be_bytes(bytes[6..8].try_into()?),
+            payload: bytes[8..].to_vec(),
+        })
     }
 }
 
